@@ -352,22 +352,22 @@ std::shared_ptr<client> init_client(const std::string& hostname,
     imu_port = get_sock_port(cli->imu_fd);
     if (lidar_port == -1 || imu_port == -1) return std::shared_ptr<client>();
 
-    int sock_fd = cfg_socket(hostname.c_str());
+    // int sock_fd = cfg_socket(hostname.c_str());
 
-    Json::CharReaderBuilder builder{};
-    auto reader = std::unique_ptr<Json::CharReader>{builder.newCharReader()};
-    Json::Value root{};
-    std::string errors{};
+    // Json::CharReaderBuilder builder{};
+    // auto reader = std::unique_ptr<Json::CharReader>{builder.newCharReader()};
+    // Json::Value root{};
+    // std::string errors{};
 
-    if (sock_fd < 0) return std::shared_ptr<client>();
+    // if (sock_fd < 0) return std::shared_ptr<client>();
 
-    std::string res;
+    // std::string res;
     bool success = true;
     // bool need_reinitialize = false;
 
-    success &=
-        do_tcp_cmd(sock_fd, {"set_config_param", "udp_ip", udp_dest_host}, res);
-    success &= res == "set_config_param";
+    // success &=
+    //     do_tcp_cmd(sock_fd, {"set_config_param", "udp_ip", udp_dest_host}, res);
+    // success &= res == "set_config_param";
 
 //     success &= do_tcp_cmd(
 //         sock_fd,
@@ -394,33 +394,33 @@ std::shared_ptr<client> init_client(const std::string& hostname,
     //     res);
     // success &= res == "set_config_param";
 
-    success &= do_tcp_cmd(sock_fd, {"get_sensor_info"}, res);
-    success &= reader->parse(res.c_str(), res.c_str() + res.size(), &cli->meta,
-                             &errors);
+    // success &= do_tcp_cmd(sock_fd, {"get_sensor_info"}, res);
+    // success &= reader->parse(res.c_str(), res.c_str() + res.size(), &cli->meta,
+    //                          &errors);
 
-    success &= do_tcp_cmd(sock_fd, {"get_beam_intrinsics"}, res);
-    success &=
-        reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
-    update_json_obj(cli->meta, root);
+    // success &= do_tcp_cmd(sock_fd, {"get_beam_intrinsics"}, res);
+    // success &=
+    //     reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
+    // update_json_obj(cli->meta, root);
 
-    success &= do_tcp_cmd(sock_fd, {"get_imu_intrinsics"}, res);
-    success &=
-        reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
-    update_json_obj(cli->meta, root);
+    // success &= do_tcp_cmd(sock_fd, {"get_imu_intrinsics"}, res);
+    // success &=
+    //     reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
+    // update_json_obj(cli->meta, root);
 
-    success &= do_tcp_cmd(sock_fd, {"get_lidar_intrinsics"}, res);
-    success &=
-        reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
-    update_json_obj(cli->meta, root);
+    // success &= do_tcp_cmd(sock_fd, {"get_lidar_intrinsics"}, res);
+    // success &=
+    //     reader->parse(res.c_str(), res.c_str() + res.size(), &root, &errors);
+    // update_json_obj(cli->meta, root);
 
     // success &= do_tcp_cmd(sock_fd, {"reinitialize"}, res);
     // success &= res == "reinitialize";
 
-    close(sock_fd);
+    // close(sock_fd);
 
-    // merge extra info into metadata
-    cli->meta["hostname"] = hostname;
-    cli->meta["lidar_mode"] = to_string(mode);
+    // // merge extra info into metadata
+    // cli->meta["hostname"] = hostname;
+    // cli->meta["lidar_mode"] = to_string(mode);
 
     return success ? cli : std::shared_ptr<client>();
 }

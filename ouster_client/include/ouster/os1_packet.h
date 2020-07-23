@@ -13,7 +13,7 @@
 namespace ouster {
 namespace OS1 {
 
-const int pixels_per_column = 64;
+const int pixels_per_column = 128;
 const int columns_per_buffer = 16;
 
 const int pixel_bytes = 12;
