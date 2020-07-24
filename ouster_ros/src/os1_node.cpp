@@ -148,53 +148,63 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
     return false;
   }
 
-  int res;
-  struct pcap_pkthdr *header;
-  const u_char *pkt_data;
   PacketMsg lidar_packet, imu_packet;
   lidar_packet.buf.resize(OS1::lidar_packet_bytes + 1);
   imu_packet.buf.resize(OS1::imu_packet_bytes + 1);
   int counter = 0;
   ros::WallDuration packet_rate(0.001);
 
-  while((res = pcap_next_ex(pcap_, &header, &pkt_data)) >= 0 && ros::ok())
+  struct pcap_pkthdr *header;
+  const u_char *pkt_data;
+
+  while (true)
   {
-    /* retireve the position of the ip header */
-    ip_header *ih;
-    udp_header *uh;
-    u_int ip_len;
-    u_short sport/* ,dport */;
-    ih = (ip_header *) (pkt_data + 14); //length of ethernet header
+    int res;
+    if ((res = pcap_next_ex(pcap_, &header, &pkt_data)) >= 0)
+    {
+      ROS_INFO_STREAM("header length: "<<header->len);
+      // Skip packets not for the correct port and from the
+      // selected IP address.
+      // if (0 == pcap_offline_filter(&pcap_packet_filter_,
+      //                               header, pkt_data))
+      //   continue;
+    
+      /* retireve the position of the ip header */
+      ip_header *ih;
+      udp_header *uh;
+      u_int ip_len;
+      u_short dport/* ,dport */;
+      ih = (ip_header *) (pkt_data + 14); //length of ethernet header
 
-    ROS_INFO_STREAM("ip_header id: " << ih->identification <<". op_pad: " << ih->op_pad <<". flags_fo" << ih->flags_fo << ". Total len: " << ih->tlen)
-    ROS_INFO_STREAM("ip_header id: " << ih->identification <<". op_pad: " << ih->op_pad <<". flags_fo" << ih->flags_fo << ". frag offset: " << (ih->flags_fo & 0x7ff) << ". Total len: " << ih->tlen)
+      /* retireve the position of the udp header */
+      ip_len = (ih->ver_ihl & 0xf) * 4;
+      uh = (udp_header *) ((u_char*)ih + ip_len);
 
-    /* retireve the position of the udp header */
-    ip_len = (ih->ver_ihl & 0xf) * 4;
-    uh = (udp_header *) ((u_char*)ih + ip_len);
+      /* convert from network byte order to host byte order */
+      dport = ntohs( uh->dport );
+      // dport = ntohs( uh->dport );
 
-    /* convert from network byte order to host byte order */
-    sport = ntohs( uh->sport );
-    // dport = ntohs( uh->dport );
+      ROS_INFO_STREAM("Got data on port: " << dport);
+      if (dport == 7502){
+        // velodyne point data
+        memcpy(lidar_packet.buf.data(), pkt_data+42, OS1::lidar_packet_bytes);
+        lidar_packet_pub.publish(lidar_packet);
+        counter++;
+      }
+      else if(dport == 7503)
+      {
+        // velodyne point data
+        memcpy(imu_packet.buf.data(), pkt_data+42, OS1::imu_packet_bytes);
+        imu_packet_pub.publish(lidar_packet);
+        counter++;
+      }
 
-    if (sport == 7502){
-      // velodyne point data
-      memcpy(&lidar_packet.buf[0], pkt_data+42, OS1::lidar_packet_bytes);
-
-      // ROS_INFO_STREAM("Got data packet time: "<<pkt->stamp);
-      lidar_packet_pub.publish(lidar_packet);
-      ROS_INFO_THROTTLE(1, "Sent %d packets so far", counter);
-      counter++;
       packet_rate.sleep();
     }
-    else
-    {
-      ros::WallDuration(0.01).sleep();
-      ROS_INFO("Got a non-data packet. Port = %d", sport);
-    }
 
-    // Keep the reader from blowing through the file.
-
+    // I can't figure out how to rewind the file, because it
+    // starts with some kind of header.  So, close the file
+    // and reopen it with pcap.
   }
 
   ROS_INFO("Read %d packets", counter);

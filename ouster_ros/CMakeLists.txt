@@ -24,6 +24,10 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_geometry_msgs
   clay_lib
 )
+
+include_directories(/usr/local/include/pcapplusplus/)
+set(libpcap_plus_plus_LIBRARIES -lPcap++ -lPacket++ -lCommon++)
+
 set(libpcap_LIBRARIES -lpcap)
 
 add_message_files(FILES PacketMsg.msg)
@@ -50,7 +54,7 @@ target_link_libraries(ouster_ros ${catkin_LIBRARIES})
 add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 
 add_executable(os1_node src/os1_node.cpp)
-target_link_libraries(os1_node ouster_ros ${catkin_LIBRARIES} ${libpcap_LIBRARIES} )
+target_link_libraries(os1_node ouster_ros ${catkin_LIBRARIES} ${libpcap_LIBRARIES} ${libpcap_plus_plus_LIBRARIES} )
 add_dependencies(os1_node ${PROJECT_NAME}_gencpp)
 
 add_executable(os1_cloud_node src/os1_cloud_node.cpp)
