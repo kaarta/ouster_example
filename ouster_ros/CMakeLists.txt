@@ -25,6 +25,7 @@ find_package(glfw3 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(ouster_client REQUIRED)
 find_package(ouster_viz REQUIRED)
+set(libpcap_LIBRARIES -lpcap)
 
 # ==== Options ====
 set(CMAKE_CXX_STANDARD 11)
@@ -65,7 +66,7 @@ add_dependencies(ouster_ros ${PROJECT_NAME}_gencpp)
 # ==== Executables ====
 add_executable(os_node src/os_node.cpp)
 target_link_libraries(os_node ouster_ros ${catkin_LIBRARIES} ouster_viz
-                      ouster_client)
+                      ouster_client ${libpcap_LIBRARIES})
 target_include_directories(os_node PRIVATE include ${catkin_INCLUDE_DIRS})
 add_dependencies(os_node ${PROJECT_NAME}_gencpp)
 
