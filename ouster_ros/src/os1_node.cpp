@@ -152,17 +152,18 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
   lidar_packet.buf.resize(OS1::lidar_packet_bytes + 1);
   imu_packet.buf.resize(OS1::imu_packet_bytes + 1);
   int counter = 0;
-  ros::WallDuration packet_rate(0.001);
+  ros::Time last_time;
 
   struct pcap_pkthdr *header;
   const u_char *pkt_data;
 
   while (true)
   {
+    ros::spinOnce();
     int res;
     if ((res = pcap_next_ex(pcap_, &header, &pkt_data)) >= 0)
     {
-      ROS_INFO_STREAM("header length: "<<header->len);
+      // ROS_INFO_STREAM("header length: "<<header->len);
       // Skip packets not for the correct port and from the
       // selected IP address.
       // if (0 == pcap_offline_filter(&pcap_packet_filter_,
@@ -184,7 +185,19 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
       dport = ntohs( uh->dport );
       // dport = ntohs( uh->dport );
 
-      ROS_INFO_STREAM("Got data on port: " << dport);
+      ros::Time packet_time(header->ts.tv_sec, header->ts.tv_usec * 1000);
+
+      if (!last_time.isZero()){
+        (packet_time-last_time).sleep();
+      }
+      else{
+        last_time = packet_time;
+        continue;
+      }
+
+      last_time = packet_time;
+
+      // ROS_INFO_STREAM("Got data on port: " << dport);
       if (dport == 7502){
         // velodyne point data
         memcpy(lidar_packet.buf.data(), pkt_data+42, OS1::lidar_packet_bytes);
@@ -196,15 +209,11 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
         // velodyne point data
         memcpy(imu_packet.buf.data(), pkt_data+42, OS1::imu_packet_bytes);
         imu_packet_pub.publish(lidar_packet);
-        counter++;
       }
-
-      packet_rate.sleep();
     }
-
-    // I can't figure out how to rewind the file, because it
-    // starts with some kind of header.  So, close the file
-    // and reopen it with pcap.
+    else{
+      break;
+    }
   }
 
   ROS_INFO("Read %d packets", counter);
@@ -224,7 +233,6 @@ int connection_loop(ros::NodeHandle& nh, OS1::client& cli) {
     lidar_packet.buf.resize(OS1::lidar_packet_bytes + 1);
     imu_packet.buf.resize(OS1::imu_packet_bytes + 1);
 
-
     while (ros::ok()) {
         auto state = OS1::poll_client(cli);
         if (state == OS1::EXIT) {
@@ -236,12 +244,10 @@ int connection_loop(ros::NodeHandle& nh, OS1::client& cli) {
             return EXIT_FAILURE;
         }
         if (state & OS1::LIDAR_DATA) {
-          ROS_INFO_THROTTLE(1, "Got LIDAR_DATA packet");
             if (OS1::read_lidar_packet(cli, lidar_packet.buf.data()))
                 lidar_packet_pub.publish(lidar_packet);
         }
         if (state & OS1::IMU_DATA) {
-          ROS_INFO_THROTTLE(1, "Got IMU_DATA packet");
             if (OS1::read_imu_packet(cli, imu_packet.buf.data()))
                 imu_packet_pub.publish(imu_packet);
         }
@@ -307,7 +313,7 @@ int main(int argc, char** argv) {
         ROS_ERROR("Must specify both hostname and udp destination");
         return EXIT_FAILURE;
     }
-    
+
     // populate info for config service
     std::string metadata = read_metadata(meta_file);
     std::cout << "metadata: " << metadata;
@@ -329,8 +335,18 @@ int main(int argc, char** argv) {
         // just serve config service
         ros::spin();
         return EXIT_SUCCESS;
+    } else if (pcap_filename.length() > 0) {
+        sleep(1);
+        ros::spinOnce();
+        // populate info for config service
+        std::string metadata = read_metadata(meta_file);
+        std::cout << "metadata: " << metadata;
+        info = OS1::parse_metadata(metadata);
+        std::cout << "info:\nbeam_altitude_angles:\n" << info.beam_altitude_angles.front() << std::endl;
+
+        return read_pcap(nh, pcap_filename);
     } else {
-        // ROS_INFO("Connecting to sensor at %s...", hostname.c_str());
+        ROS_INFO("Connecting to sensor at %s...", hostname.c_str());
 
         ROS_INFO("Sending data to %s using lidar_mode: %s", udp_dest.c_str(),
                  lidar_mode.c_str());
@@ -344,21 +360,20 @@ int main(int argc, char** argv) {
             ROS_ERROR("Failed to initialize sensor at: %s", hostname.c_str());
             return EXIT_FAILURE;
         }
-        // ROS_INFO("Sensor reconfigured successfully, waiting for data...");
+        ROS_INFO("Sensor reconfigured successfully, waiting for data...");
 
         // write metadata file to cwd (usually ~/.ros)
-        // auto metadata = OS1::get_metadata(*cli);
-        // write_metadata(meta_file, metadata);
+        auto metadata = OS1::get_metadata(*cli);
+        write_metadata(meta_file, metadata);
 
         // populate sensor info
         info = OS1::parse_metadata(metadata);
-        // populate_metadata_defaults(info, "");
+        populate_metadata_defaults(info, "");
 
         ROS_INFO("Sensor sn: %s firmware rev: %s", info.sn.c_str(),
                  info.fw_rev.c_str());
 
         // publish packet messages from the sensor
-        // return connection_loop(nh, *cli);
-        return read_pcap(nh, pcap_filename);
+        return connection_loop(nh, *cli);
     }
 }
