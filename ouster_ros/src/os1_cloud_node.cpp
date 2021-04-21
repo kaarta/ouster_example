@@ -88,6 +88,7 @@ int main(int argc, char** argv) {
     tf_bcast.sendTransform(ouster_ros::OS1::transform_to_tf_msg(
         cfg.response.lidar_to_sensor_transform, sensor_frame, lidar_frame));
 
+    ROS_INFO("os1_cloud_node spinning");
     ros::spin();
 
     return EXIT_SUCCESS;

@@ -13,7 +13,10 @@
 namespace ouster {
 namespace OS1 {
 
-const int pixels_per_column = 128;
+// hmp: It seems like this has to match the # of rings of the lidar; the OS1 comes in 3 flavors
+// (32,64,128); this probably ought to be a parameter deduced from the sensor or pcap
+// Changed to 64 so we could process a pcap from a 64-line unit
+const int pixels_per_column = 64;
 const int columns_per_buffer = 16;
 
 const int pixel_bytes = 12;

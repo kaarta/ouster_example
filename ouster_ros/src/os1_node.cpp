@@ -187,7 +187,10 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
 
       ros::Time packet_time(header->ts.tv_sec, header->ts.tv_usec * 1000);
 
-      if (!last_time.isZero()){
+      // hmp: In processing a pcap file, it appears there may have been out-of-order packets
+      // causing this to sleep for a LONG time. Not sure if just skipping to the next one
+      // is always the right thing in general.
+      if (!last_time.isZero() && packet_time>last_time){
         (packet_time-last_time).sleep();
       }
       else{
@@ -279,8 +282,8 @@ int main(int argc, char** argv) {
     auto udp_dest = nh.param("os1_udp_dest", std::string{});
     auto lidar_port = nh.param("os1_lidar_port", 0);
     auto imu_port = nh.param("os1_imu_port", 0);
-    // auto replay = nh.param("replay", false);
-    auto replay = nh.param("/use_sim_time", false);
+    auto replay = nh.param("replay", false);
+    replay = replay || nh.param("/use_sim_time", false);
     auto lidar_mode = nh.param("lidar_mode", std::string{});
     auto timestamp_mode = nh.param("timestamp_mode", std::string{});
     auto pcap_filename = nh.param("pcap_filename", std::string{});
@@ -309,7 +312,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if (!replay && (!hostname.size() || !udp_dest.size())) {
+    if (!replay && (!hostname.size() || !udp_dest.size()) && pcap_filename.length() == 0) {
         ROS_ERROR("Must specify both hostname and udp destination");
         return EXIT_FAILURE;
     }
@@ -333,6 +336,7 @@ int main(int argc, char** argv) {
                  info.fw_rev.c_str());
 
         // just serve config service
+        ROS_INFO("os1_node spinning");
         ros::spin();
         return EXIT_SUCCESS;
     } else if (pcap_filename.length() > 0) {
