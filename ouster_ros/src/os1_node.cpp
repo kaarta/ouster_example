@@ -132,6 +132,9 @@ void write_metadata(const std::string& meta_file, const std::string& metadata) {
       u_short crc;            // Checksum
   }udp_header;
 
+// Example command line to convert pcap:
+// roslaunch ouster_ros pcap_to_bag.launch pcap_filename:=/home/kaarta/Downloads/ouster-1024x20.pcap
+
 bool read_pcap(ros::NodeHandle& nh, std::string filename)
 {
   pcap_t *pcap_;
@@ -151,13 +154,13 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
   PacketMsg lidar_packet, imu_packet;
   lidar_packet.buf.resize(OS1::lidar_packet_bytes + 1);
   imu_packet.buf.resize(OS1::imu_packet_bytes + 1);
-  int counter = 0;
+  int lidar_counter = 0, imu_counter = 0;
   ros::Time last_time;
 
   struct pcap_pkthdr *header;
   const u_char *pkt_data;
 
-  while (true)
+  while (ros::ok())
   {
     ros::spinOnce();
     int res;
@@ -205,27 +208,31 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
         // velodyne point data
         memcpy(lidar_packet.buf.data(), pkt_data+42, OS1::lidar_packet_bytes);
         lidar_packet_pub.publish(lidar_packet);
-        counter++;
+        lidar_counter++;
       }
       else if(dport == 7503)
       {
         // velodyne point data
         memcpy(imu_packet.buf.data(), pkt_data+42, OS1::imu_packet_bytes);
         imu_packet_pub.publish(lidar_packet);
+        imu_counter++;
       }
-    }
+      std::cout << "Published: lidar_packets = " << lidar_counter << ", imu_packets = " << imu_counter << "\r";
+      std::cout.flush();
+}
     else{
       break;
     }
   }
 
-  ROS_INFO("Read %d packets", counter);
+  std::cout << std::endl;
+  // ROS_INFO("Read %d packets", counter);
 
   // I can't figure out how to rewind the file, because it
   // starts with some kind of header.  So, close the file
   // and reopen it with pcap.
   pcap_close(pcap_);
-  return counter > 0;                   // success
+  return lidar_counter > 0 && imu_counter > 0;
 }
 
 int connection_loop(ros::NodeHandle& nh, OS1::client& cli) {
@@ -318,10 +325,12 @@ int main(int argc, char** argv) {
     }
 
     // populate info for config service
-    std::string metadata = read_metadata(meta_file);
-    std::cout << "metadata: " << metadata;
-    info = OS1::parse_metadata(metadata);
-    std::cout << "info:\nbeam_altitude_angles:\n" << info.beam_altitude_angles.front() << std::endl;
+    // hmp: It looks like the metadata file is only applicable in replay?
+    // This code crashes if no metadata file is supplied... i.e. in live scanning or pcap conversion
+    // std::string metadata = read_metadata(meta_file);
+    // std::cout << "metadata: " << metadata;
+    // info = OS1::parse_metadata(metadata);
+    // std::cout << "info:\nbeam_altitude_angles:\n" << info.beam_altitude_angles.front() << std::endl;
 
     if (replay) {
         ROS_INFO("Running in replay mode");
@@ -343,10 +352,11 @@ int main(int argc, char** argv) {
         sleep(1);
         ros::spinOnce();
         // populate info for config service
-        std::string metadata = read_metadata(meta_file);
-        std::cout << "metadata: " << metadata;
-        info = OS1::parse_metadata(metadata);
-        std::cout << "info:\nbeam_altitude_angles:\n" << info.beam_altitude_angles.front() << std::endl;
+        // hmp: I don't think the metadata is relevant just to publish packets from a pcap file?
+        // std::string metadata = read_metadata(meta_file);
+        // std::cout << "metadata: " << metadata;
+        // info = OS1::parse_metadata(metadata);
+        // std::cout << "info:\nbeam_altitude_angles:\n" << info.beam_altitude_angles.front() << std::endl;
 
         return read_pcap(nh, pcap_filename);
     } else {

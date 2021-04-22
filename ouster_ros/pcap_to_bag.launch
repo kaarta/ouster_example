@@ -1,0 +1,14 @@
+<launch>
+  <arg name="pcap_filename" doc="pcap filename to load and replay"/>
+  <arg name="bag_filename" default="$(arg pcap_filename).bag" doc="output bag filename"/>
+
+  <node pkg="rosbag" name="record" type="record" output="screen" required="true"
+    args="-O $(arg bag_filename) /os1_node/lidar_packets /os1_node/imu_packets">
+  </node>
+
+  <node pkg="ouster_ros" name="os1_node" type="os1_node" output="screen" required="true">
+    <param name="~/pcap_filename" value="$(arg pcap_filename)"/>
+  </node>
+
+
+</launch>
