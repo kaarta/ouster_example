@@ -193,8 +193,15 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
       // hmp: In processing a pcap file, it appears there may have been out-of-order packets
       // causing this to sleep for a LONG time. Not sure if just skipping to the next one
       // is always the right thing in general.
-      if (!last_time.isZero() && packet_time>last_time){
-        (packet_time-last_time).sleep();
+      if (!last_time.isZero()){
+        if (packet_time>last_time) {
+          (packet_time-last_time).sleep();
+        }
+        else{
+          std::cout << std::endl << "Out-of-order packet skipped, diff = " << (packet_time-last_time).toSec() << std::endl;
+          last_time = packet_time;
+          continue;
+        }
       }
       else{
         last_time = packet_time;
