@@ -198,9 +198,9 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
           (packet_time-last_time).sleep();
         }
         else{
-          std::cout << std::endl << "Out-of-order packet skipped, diff = " << (packet_time-last_time).toSec() << std::endl;
-          last_time = packet_time;
-          continue;
+          std::cout << std::endl << "Out-of-order packet, diff = " << (packet_time-last_time).toSec() << std::endl;
+          // last_time = packet_time;
+          // continue;
         }
       }
       else{
