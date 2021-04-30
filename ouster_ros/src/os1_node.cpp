@@ -194,7 +194,7 @@ bool read_pcap(ros::NodeHandle& nh, std::string filename)
       // causing this to sleep for a LONG time. Not sure if just skipping to the next one
       // is always the right thing in general.
       if (!last_time.isZero()){
-        if (packet_time>last_time) {
+        if (packet_time >= last_time) {
           (packet_time-last_time).sleep();
         }
         else{
